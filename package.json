@@ -1,0 +1,32 @@
+{
+  "name": "gpt-be",
+  "version": "1.0.0",
+  "description": "Backend API for GPT Extension",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "nodemon server.js",
+    "bot": "node bot.js",
+    "telegram": "node telegram-bot.js",
+    "telegram-simple": "node telegram-bot-simple.js",
+    "customer-bot": "node customer-bot.js",
+    "test-system": "node test-system.js",
+    "update-plan": "node update-plan.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "body-parser": "^1.20.2",
+    "cors": "^2.8.5",
+    "dotenv": "^16.3.1",
+    "express": "^4.18.2",
+    "mongodb": "^6.3.0",
+    "node-fetch": "^2.7.0",
+    "node-telegram-bot-api": "^0.64.0",
+    "qrcode": "^1.5.4"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.2"
+  }
+}

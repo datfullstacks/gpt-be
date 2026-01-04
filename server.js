@@ -164,6 +164,62 @@ app.get('/', (req, res) => {
     });
 });
 
+// Proxy for dongvanfb API (to bypass SSL certificate errors)
+app.post('/api/proxy/hotmail-otp', async (req, res) => {
+    try {
+        const { email, pass, refresh_token, client_id } = req.body;
+        
+        if (!email || !pass || !refresh_token || !client_id) {
+            return res.status(400).json({
+                success: false,
+                error: 'Missing required fields: email, pass, refresh_token, client_id'
+            });
+        }
+        
+        console.log('[PROXY] Fetching Hotmail OTP for:', email);
+        
+        const https = require('https');
+        const agent = new https.Agent({
+            rejectUnauthorized: false // Ignore SSL certificate errors
+        });
+        
+        const response = await fetch('https://tools.dongvanfb.net/api/get_messages_oauth2', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                email,
+                pass,
+                refresh_token,
+                client_id
+            }),
+            agent // Use custom agent that ignores SSL errors
+        });
+        
+        if (!response.ok) {
+            console.error('[PROXY] API returned:', response.status);
+            return res.status(response.status).json({
+                success: false,
+                error: `API returned ${response.status}`
+            });
+        }
+        
+        const data = await response.json();
+        console.log('[PROXY] API response:', data.status ? 'success' : 'failed', 
+                    data.messages ? `(${data.messages.length} messages)` : '');
+        
+        res.json(data);
+        
+    } catch (error) {
+        console.error('[PROXY] Error:', error);
+        res.status(500).json({
+            success: false,
+            error: error.message
+        });
+    }
+});
+
 // Check Telegram Bot
 app.get('/api/check-bot', async (req, res) => {
     try {

@@ -79,6 +79,7 @@ let accountsCollection;
 let usersCollection;
 let walletsCollection;
 let transactionsCollection;
+let queueCollection;
 
 // Connect to MongoDB
 async function connectDB() {
@@ -90,11 +91,13 @@ async function connectDB() {
         usersCollection = db.collection('users');
         walletsCollection = db.collection('wallets');
         transactionsCollection = db.collection('transactions');
+        queueCollection = db.collection('queue');
         
         // Create indexes
         await usersCollection.createIndex({ telegram_chat_id: 1 }, { unique: true });
         await walletsCollection.createIndex({ user_id: 1 });
         await transactionsCollection.createIndex({ user_id: 1, created_at: -1 });
+        await queueCollection.createIndex({ created_at: -1 });
         
         console.log('✅ Collections initialized');
     } catch (error) {
@@ -286,6 +289,118 @@ Nếu nhận được tin nhắn này, hệ thống đã sẵn sàng!
         
     } catch (error) {
         res.json({
+            success: false,
+            error: error.message
+        });
+    }
+});
+
+// GET /api/accounts/check - Check if email exists
+app.get('/api/accounts/check', async (req, res) => {
+    try {
+        const { email } = req.query;
+        
+        if (!email) {
+            return res.status(400).json({
+                success: false,
+                error: 'Email is required'
+            });
+        }
+        
+        const account = await accountsCollection.findOne({ email });
+        
+        res.json({
+            success: true,
+            exists: !!account
+        });
+        
+    } catch (error) {
+        console.error('Error checking email:', error);
+        res.status(500).json({
+            success: false,
+            error: error.message
+        });
+    }
+});
+
+// POST /api/queue - Save account queue (for incognito persistence)
+app.post('/api/queue', async (req, res) => {
+    try {
+        const { queue, queueIndex, timestamp } = req.body;
+        
+        if (!Array.isArray(queue)) {
+            return res.status(400).json({
+                success: false,
+                error: 'Queue must be an array'
+            });
+        }
+        
+        // Replace existing queue (only keep 1 active queue)
+        await queueCollection.deleteMany({});
+        
+        if (queue.length > 0) {
+            const document = {
+                queue,
+                queueIndex: queueIndex || 0,
+                timestamp: timestamp || new Date().toISOString(),
+                created_at: new Date()
+            };
+            
+            const result = await queueCollection.insertOne(document);
+            
+            res.json({
+                success: true,
+                data: {
+                    id: result.insertedId,
+                    queueLength: queue.length,
+                    queueIndex: document.queueIndex
+                }
+            });
+        } else {
+            // Queue cleared
+            res.json({
+                success: true,
+                data: {
+                    queueLength: 0,
+                    message: 'Queue cleared'
+                }
+            });
+        }
+        
+    } catch (error) {
+        console.error('Error saving queue:', error);
+        res.status(500).json({
+            success: false,
+            error: error.message
+        });
+    }
+});
+
+// GET /api/queue - Load account queue
+app.get('/api/queue', async (req, res) => {
+    try {
+        // Get latest queue (sorted by created_at desc)
+        const queueDoc = await queueCollection.findOne({}, { sort: { created_at: -1 } });
+        
+        if (!queueDoc) {
+            return res.json({
+                success: true,
+                queue: [],
+                queueIndex: 0,
+                message: 'No queue found'
+            });
+        }
+        
+        res.json({
+            success: true,
+            queue: queueDoc.queue || [],
+            queueIndex: queueDoc.queueIndex || 0,
+            timestamp: queueDoc.timestamp
+        });
+        
+    } catch (error) {
+        console.error('Error loading queue:', error);
+        res.status(500).json({
             success: false,
             error: error.message
         });

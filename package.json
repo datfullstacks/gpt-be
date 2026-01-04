@@ -10,6 +10,7 @@
     "telegram": "node telegram-bot.js",
     "telegram-simple": "node telegram-bot-simple.js",
     "customer-bot": "node customer-bot.js",
+    "import-bot": "node account-import-bot.js",
     "test-system": "node test-system.js",
     "update-plan": "node update-plan.js"
   },

@@ -1,0 +1,14 @@
+{
+	"folders": [
+		{
+			"path": "../2fa-extension"
+		},
+		{
+			"path": "../gpt-extension"
+		},
+		{
+			"path": "."
+		}
+	],
+	"settings": {}
+}

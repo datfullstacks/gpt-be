@@ -10,6 +10,23 @@ Backend API + Telegram Bot + SePay Webhook - Hệ thống bán tài khoản Chat
 - 🗄️ **MongoDB** - Quản lý inventory accounts
 - 🔐 **Security** - API key authentication, payment verification
 - 📊 **Admin Panel** - Nhận thông báo mỗi khi bán hàng
+- 🔌 **Extension Integration** - Nhận accounts từ Chrome extension
+
+## 🏗️ Kiến Trúc Hệ Thống
+
+```
+gpt-extension (Chrome Extension)
+    ↓ POST /api/accounts
+gpt-be Backend (DigitalOcean)
+    ↓ MongoDB: gpt-reg-account.accounts
+Telegram Bot (@gpt_ser_bot)
+    ↓ GET /api/accounts/available
+Customer mua hàng
+    ↓ Chuyển khoản ngân hàng
+SePay Webhook
+    ↓ POST /webhook/payment
+Auto Delivery (Telegram)
+```
 
 ## 🚀 Quick Start
 
@@ -20,12 +37,21 @@ npm install
 
 ### 2. Cấu Hình .env
 ```env
-MONGODB_URI=mongodb+srv://...
+PORT=3000
+MONGODB_URI=mongodb+srv://dat79:dat79@cluster0.pdhx4uj.mongodb.net/
+DB_NAME=gpt-reg-account
+COLLECTION_NAME=accounts
 TELEGRAM_BOT_TOKEN=8042999597:AAEe...
 ADMIN_TELEGRAM_CHAT_ID=5787980050
 SEPAY_API_KEY=sk_sepay_chatgpt_2024
-PORT=3000
+SEPAY_ACCOUNT_NUMBER=999906052003
 ```
+
+**MongoDB Collections:**
+- `accounts` - ChatGPT accounts inventory
+- `users` - Telegram bot users
+- `wallets` - User wallet balances
+- `transactions` - Payment history
 
 ### 3. Kiểm Tra Hệ Thống
 ```bash
@@ -89,18 +115,122 @@ Customer chuyển khoản (PLUS123456)
     ↓
 SePay webhook → Backend
     ↓
-Verify payment → Find account (plan=plus)
+Verify payment → Find account (plan=plus, sold_status='available')
     ↓
-Update sold_status → Send to Telegram
+Update sold_status='sold', sold_to=chatId, sold_at=Date
+    ↓
+Send to Telegram: "Email: xxx\nPassword: yyy\n2FA: zzz"
+    ↓
+Notify Admin: "Đã bán 1 account PLUS cho @username"
     ↓
 Customer nhận tài khoản tự động
 ```
 
-## 📋 API Endpoints
+## 📦 Extension Integration Flow
 
-### Webhook
-- `POST /webhook/payment` - SePay webhook (requires API key)
+```
+User dùng gpt-extension (Chrome)
+    ↓
+Auto đăng ký ChatGPT + Enable 2FA
+    ↓
+Extension POST đến: https://orca-app-an2z8.ondigitalocean.app/api/accounts
+    ↓
+gpt-be server.js nhận request
+    ↓
+Validate: email, password required
+    ↓
+Create document với sold_status = 'available'
+    ↓
+Insert vào MongoDB: gpt-reg-account.accounts
+    ↓
+Response: { success: true, data: { id: ObjectId } }
+    ↓
+Account sẵn sàng để bán qua Telegram bot
+`````javascript
+  Body: {
+    email, password, secret_key_2fa,
+    plan_type, account_id, organization_id, user_id,
+    access_token, session_data
+  }
+  Response: { success: true, data: { id, ... } }
+  ```
+- `POST /api/accounts/update-session` - Update session info
+- `GET /api/accounts` - Get all accounts
+- `GET /api/accounts/available` - Get available accounts (sold_status = 'available')
+- `GET /api/accounts/available?plan_type=plus` - Filter by plan
+- `POST /api/accounts/:id/sell` - Mark as sold
 
+### Admin
+- `GET /api/check-bot` - Check Telegram bot status
+- `POST /api/test-notification` - Test notification
+- `POST /api/maintenance` - Enable/disable maintenance mode
+- `GET /api/maintenance` - Check maintenance status
+
+### Account Document Structure
+```javascript
+{
+  email: "string",
+## 🐛 Troubleshooting
+
+**Lỗi: No available accounts**
+```bash
+# Kiểm tra inventory
+npm run test-system
+
+# Cập nhật plan của account
+npm run update-plan
+
+# Check MongoDB
+# sold_status phải là 'available', không phải 'sold'
+```
+## 📚 Related Projects
+
+- **gpt-extension** - Chrome extension auto register ChatGPT + 2FA
+  - POST accounts to this backend (`/api/accounts`)
+  - Repository: `c:\Users\DAT\code\gpt-extension`
+  
+- **gpt-slot-manager** - Monitor ChatGPT teams & session tracking
+  - Track 401 expired sessions
+  - Admin dashboard
+  - Repository: `c:\Users\DAT\code\gpt-managerment\gpt-slot-manager`
+  
+- **gpt-session** - Auto-refresh expired ChatGPT sessions
+  - Playwright automation
+  - Batch token refresh
+  - Repository: `c:\Users\DAT\code\gpt-session`
+
+## 📚 Documentation
+
+- `CUSTOMER_BOT_GUIDE.md` - Hướng dẫn chi tiết customer bot
+- `ADMIN_GUIDE.md` - Hướng dẫn quản trị hệ thống
+- `WEBHOOK_SETUP.md` - Hướng dẫn setup SePay webhook
+- `WALLET_SYSTEM.md` - Hướng dẫn hệ thống ví
+- `QR_CODE_SYSTEM.md` - Hướng dẫn QR payment
+- `SECURITY.md` - Hướng dẫn bảo mật
+curl https://orca-app-an2z8.ondigitalocean.app/
+
+# Check MongoDB connection
+npm start  # Xem log "✅ Connected to MongoDB"
+
+# Test endpoint
+curl -X POST https://orca-app-an2z8.ondigitalocean.app/api/accounts \
+  -H "Content-Type: application/json" \
+  -d '{"email":"test@example.com","password":"test123"}'
+```
+
+**Lỗi: User không nhận message**
+- User phải /start bot trước khi mua
+- Check TELEGRAM_BOT_TOKEN trong .env
+- Verify bot qua: `GET /api/check-bot`
+
+**Lỗi: Payment not verified**
+- Check nội dung CK phải có: PLUS/TEAM/FREE + Chat ID
+- Verify SEPAY_API_KEY trong .env
+- Check SEPAY_ACCOUNT_NUMBER đúng tài khoản
+  sold_at: Date,
+  created_at: Date
+}
+```
 ### Accounts
 - `GET /api/accounts` - Get all accounts
 - `GET /api/accounts/available` - Get available accounts

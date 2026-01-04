@@ -38,7 +38,6 @@ npm install
 ### 2. Cấu Hình .env
 ```env
 PORT=3000
-MONGODB_URI=mongodb+srv://dat79:dat79@cluster0.pdhx4uj.mongodb.net/
 DB_NAME=gpt-reg-account
 COLLECTION_NAME=accounts
 TELEGRAM_BOT_TOKEN=8042999597:AAEe...
